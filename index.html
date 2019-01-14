@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        #app {
+            display: flex;
+            height: 100%;
+        }
+
+        #app>div {
+            flex: 1;
+            overflow-y:scroll;
+        }
+
+        #app>div.left {
+            background-color: orange;
+         }
+
+        #app>div.right {
+            background-color: #eee;
+        }
+
+        input {
+            width: 400px;
+            height: 40px;
+            border-radius: 20px;
+            outline: none;
+            border: none;
+            padding-left: 20px;
+            margin: 50px 260px;
+
+        }
+
+        ul {
+            width: 500px;
+            margin: 0 auto;
+        }
+
+        li {
+            list-style: none;
+            outline: none;
+           
+        }
+
+        li.musicList {
+            height: 50px;
+            line-height: 50px;
+            font-size: 18px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        li.musicList:hover {
+            cursor: pointer
+        }
+
+        .list-item {
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        audio {
+            margin-left: 316px;
+        }
+
+        .list-enter-active,
+        .list-leave-active {
+            transition: all 1s;
+        }
+
+        .list-enter,
+        .list-leave-to
+        /* .list-leave-active for below version 2.1.8 */
+
+            {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+
+        .fengMian {
+            display: block;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            margin: 30px auto
+        }
+
+        @keyframes playRotate {
+            to {
+                transform: rotateZ(360deg);
+            }
+        }
+
+        .autoRotate {
+            animation: playRotate 5s infinite linear running;
+        }
+
+        /* 动画播放状态 */
+
+        .pause {
+            animation-play-state: paused;
+        }
+        .commentList>li{
+            display: flex;
+            border-top: 1px solid #ccc;
+            padding: 10px 5px;
+        }
+        .comLeft {
+            width: 50px;
+            height: 50px;
+            background-color: #0f0;
+        }
+        img{
+            display: block;
+            width: 100%;
+        }
+        .comRight{
+            flex: 1;
+            font-size: 14px;
+            padding-left: 10px;
+            /* word-break:break-all */
+        }
+        
+        a {
+            text-decoration: none;
+            color: #2a86c9;
+            
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="left">
+            <input @keyup.enter="musicSearch" v-model="musicVal" type="text" placeholder="请输入你要听的歌曲">
+            <transition-group name="list" tag="ul" v-on:after-enter="afterEnter">
+                <li class="musicList" @dblclick="playMusic(item.id,item.album.id)" v-for="(item, index) in musicList" :key="item.id" :style="{'transition-delay':index*100+'ms'}">
+                    {{item.name}} ---{{item.artists[0].name}}
+                </li>
+            </transition-group>
+        </div>
+        <div class="right">
+            <img class="fengMian autoRotate" :src="picUrl" alt="" :class="{pause:isPlay}">
+            <audio @pause="pause" @play="play" :src="musicUrl" autoplay controls></audio>
+            <ul class="commentList">
+                <li v-for="(item, index) in commentList">
+                    <div class="comLeft">
+                        <img :src="item.user.avatarUrl" alt="">
+                    </div>
+                    <div class="comRight">
+                        <a href="#">{{item.user.nickname}}:</a>{{item.content}}
+                    </div>
+                </li>
+            </ul>
+
+        </div>
+    </div>
+</body>
+
+</html>
+<script src="https://cdn.staticfile.org/vue/2.4.2/vue.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+<script>
+    let app = new Vue({
+        el: "#app",
+        data: {
+            musicVal: "",
+            musicList: [],
+            musicUrl: "",
+            picUrl: "",
+            isPlay: false,
+            commentList:[]
+        },
+        methods: {
+            musicSearch() {
+                //发送请求
+                this.$http.get(`https://autumnfish.cn/search?keywords=${this.musicVal}`)
+                    .then(res => {
+                        // console.log(res);
+                        this.musicList = res.body.result.songs;
+                        // console.log( this.musicList);
+
+
+                    }, err => { })
+            },
+            playMusic(id, albumId) {
+                // console.log(albumId);                
+                this.$http.get(`https://autumnfish.cn/song/url?id=${id}`)
+                    .then(res => {
+                        // console.log(res);
+                        this.musicUrl = res.body.data[0].url
+                    }, err => { });
+
+                //调用专辑接口 找到封面地址
+                this.$http.get(`https://autumnfish.cn//album?id=${albumId}`)
+                    .then(res => {
+                        // concommentListsole.log(res);
+                        this.picUrl = res.body.album.blurPicUrl
+                    }, err => { });
+
+                //调用热门评论的接口
+                this.$http.get(`https://autumnfish.cn/comment/hot?id=${id}&type=0`)
+                .then(res=>{
+                    // console.log(res);
+                    this.commentList = res.body.hotComments;
+                },err=>{})
+            },
+            afterEnter(el) {
+                // console.log(el);
+                el.style = ""
+            },
+            pause() {
+                this.isPlay = true;
+            },
+            play() {
+                this.isPlay = false
+            }
+        },
+    })
+</script>
